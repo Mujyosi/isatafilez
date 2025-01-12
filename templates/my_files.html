@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1 class="text-center my-4">My Files</h1>
+
+    {% for folder, files in files_by_folder.items() %}
+        <h3>Folder: {{ folder }}</h3>
+        {% if files %}
+            <ul class="list-group">
+                {% for file in files %}
+                    <li class="list-group-item">
+                        <a href="{{ url_for('file_link', unique_id=file.unique_name) }}">{{ file.original_name }}</a>
+                        <form action="{{ url_for('delete_file', unique_id=file.unique_name) }}" method="POST" class="d-inline-block ml-2">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No files in this folder.</p>
+        {% endif %}
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container">
+        <h1 class="text-center my-4">Upload File</h1>
+        <form action="/upload" method="POST" enctype="multipart/form-data" class="my-4">
+            <div class="mb-3">
+                <label for="folder_name" class="form-label">Folder Name (Optional)</label>
+                <input type="text" name="folder_name" id="folder_name" class="form-control" placeholder="Enter folder name">
+            </div>
+            <div class="mb-3">
+                <label for="file" class="form-label">Choose a file to upload:</label>
+                <input type="file" name="file" id="file" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary w-100">Upload</button>
+        </form>
+    </div>
+    <!-- Link to view uploaded files -->
+    <div class="mt-4">
+        <a href="{{ url_for('my_files') }}" class="btn btn-secondary w-100">View My Files</a>
+    </div>
+{% endblock %}
