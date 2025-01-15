@@ -1,4 +1,6 @@
-from flask import Flask, render_template, request, redirect, url_for, session, abort, send_from_directory
+import io
+import boto3
+from flask import Flask, Response, jsonify, render_template, request, redirect, send_file, url_for, session, abort, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import os
@@ -6,8 +8,15 @@ import uuid
 from moviepy.video.io.VideoFileClip import VideoFileClip
 from flask_migrate import Migrate
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
+from botocore.exceptions import NoCredentialsError
+from itsdangerous import URLSafeTimedSerializer
+import requests
+import logging
+
 
 app = Flask(__name__)
+
+
 
 # Set up configuration
 app.config['UPLOAD_FOLDER'] = 'static/uploads'
@@ -29,7 +38,19 @@ os.makedirs(app.config['COMPRESSED_FOLDER'], exist_ok=True)
 app.config['B2_ACCOUNT_ID'] = 'sabrine222018047@gmail.com'  # Replace with your Account ID
 app.config['B2_APP_KEY'] = '0d66b6394052'  # Replace with your Application Key
 app.config['B2_BUCKET_NAME'] = 'mujyosi'  # Replace with your Bucket Name
+# Cloudflare R2 Configuration
+app.config['R2_ACCESS_KEY'] = '67b76687e1c34e888f88ae7ca6ce5d2b'
+app.config['R2_SECRET_KEY'] = '1dad122b4bc2c6336bcd72a38d75aec0cb362258786ab8c5a815ecd8917fbf6d'
+app.config['R2_ENDPOINT'] = 'https://0a6fe2e89e28392240be7823ce09051f.r2.cloudflarestorage.com'
+app.config['R2_BUCKET_NAME'] = 'isata'  # Update this if you specified a different bucket name
 
+
+serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
+
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # User model for Flask-Login
 class User(UserMixin, db.Model):
@@ -46,6 +67,15 @@ class FileMetadata(db.Model):
     file_path = db.Column(db.String(256), nullable=False)
     def __repr__(self):
         return f"<File {self.original_name}>"
+
+# Initialize the R2 client
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=app.config['R2_ACCESS_KEY'],
+    aws_secret_access_key=app.config['R2_SECRET_KEY'],
+    endpoint_url=app.config['R2_ENDPOINT']
+)
+
 
 
 # Initialize Backblaze B2
@@ -76,76 +106,118 @@ def compress_video(input_path, output_path, max_width=1280):
 def index():
     return render_template('index.html')
 
+
+
 @app.route('/upload', methods=['POST'])
-@login_required  # Ensure only logged-in users can upload
+@login_required
 def upload_file():
     if 'file' not in request.files:
-        return "No file uploaded", 400
+        return jsonify({"success": False, "error": "No file uploaded"})
 
     file = request.files['file']
     if file.filename == '':
-        return "No file selected", 400
+        return jsonify({"success": False, "error": "No file selected"})
 
-    # Get folder name and title from the form
-    folder_name = request.form.get('folder_name', 'default_folder')  # Get folder name or default
-
-    
-    folder_path = os.path.join(app.config['UPLOAD_FOLDER'], folder_name)
-    
-    # Create the folder if it doesn't exist
-    if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
-
+    # Use 'isata' as the default folder if none is provided
+    folder_name = request.form.get('folder_name', 'isata')  # Default folder name 'isata'
     file_ext = file.filename.split('.')[-1]
-    unique_name = f"{uuid.uuid4().hex}.{file_ext}"
-    file_path = os.path.join(folder_path, unique_name)
-    file.save(file_path)
+    unique_id = uuid.uuid4().hex  # Generate a unique ID
+    unique_name = f"{folder_name}/{unique_id}.{file_ext}"  # Create a path like 'isata/<unique_id>.extension'
 
-    compressed_path = None
-    is_compressed = False
+    try:
+        # Upload the file to Cloudflare R2
+        s3_client.upload_fileobj(
+            file,
+            app.config['R2_BUCKET_NAME'],
+            unique_name,
+            ExtraArgs={'ContentType': file.content_type}
+        )
 
-    if file_ext in ['mp4', 'webm', 'ogg'] and os.path.getsize(file_path) > 100 * 1024 * 1024:
-        compressed_name = f"compressed_{unique_name}"
-        compressed_path = os.path.join(app.config['COMPRESSED_FOLDER'], compressed_name)
-        compress_video(file_path, compressed_path)
-        is_compressed = True
+        # Save metadata to the database
+        metadata = FileMetadata(
+            unique_name=unique_id,
+            original_name=file.filename,
+            is_compressed=False,
+            file_path=unique_name  # Store the folder and file path
+        )
+        db.session.add(metadata)
+        db.session.commit()
 
-    final_path = compressed_path if is_compressed else file_path
+        # Construct the file URL with the proper format
+        file_url = f"https://pub-8ddd7050ab164d438f6ef03254ee053d.r2.dev/{unique_name}"
 
-    # Save file metadata in the database with the title
-    metadata = FileMetadata(
-        unique_name=unique_name,
-        original_name=file.filename,
-        is_compressed=is_compressed,
-        file_path=final_path
-    )
-    db.session.add(metadata)
-    db.session.commit()
+        # Generate secure link
+        secure_url = url_for('file_link', unique_id=unique_id, _external=True)
 
-    return redirect(url_for('file_link', unique_id=unique_name))
+        return jsonify({"success": True, "file_url": file_url, "secure_url": secure_url})
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 
+@app.route('/access/<unique_id>')
+def access_file(unique_id):
+    metadata = FileMetadata.query.filter_by(unique_name=unique_id).first()
+    if not metadata:
+        return jsonify({"success": False, "error": "File not found"}), 404
+
+    file_url = f"https://pub-8ddd7050ab164d438f6ef03254ee053d.r2.dev/{metadata.file_path}"
+    return redirect(file_url)
 
 @app.route('/file/<unique_id>')
 def file_link(unique_id):
+    # Retrieve metadata for the file based on the unique ID
     metadata = FileMetadata.query.filter_by(unique_name=unique_id).first()
     if not metadata:
         abort(404)
 
-    file_url = metadata.file_path.replace('static/', '/static/')
-    file_ext = metadata.file_path.split('.')[-1]
+    # Construct the file URL using the metadata's file path
+    cloudflare_base_url = "https://pub-8ddd7050ab164d438f6ef03254ee053d.r2.dev/"
+    file_url = f"{cloudflare_base_url}{metadata.file_path}"
+    is_video = file_url.endswith(('.mp4', '.webm', '.ogg'))
 
-    is_video = file_ext in ['mp4', 'webm', 'ogg']
+    # Render the file link page with the secure link and preview
     return render_template('file_link.html', file_url=file_url, is_video=is_video, unique_id=unique_id)
 
 @app.route('/download/<unique_id>')
 def download_file(unique_id):
-    metadata = FileMetadata.query.filter_by(unique_name=unique_id).first()
-    if not metadata:
-        abort(404)
+    logger.debug(f"Attempting to retrieve file with unique_id: {unique_id}")
 
-    folder, filename = os.path.split(metadata.file_path)
-    return send_from_directory(folder, filename, as_attachment=True)
+    # Retrieve metadata for the file based on the unique ID
+    metadata = FileMetadata.query.filter_by(unique_name=unique_id).first()
+
+    if not metadata:
+        logger.error(f"File not found for unique_id: {unique_id}")
+        abort(404, description="File not found")
+
+    # Construct the file path (same as the file URL, but for R2)
+    file_path = metadata.file_path
+    logger.debug(f"File path to be retrieved: {file_path}")
+
+    try:
+        # Fetch the file from R2 using boto3
+        file_content = io.BytesIO()
+        s3_client.download_fileobj(
+            app.config['R2_BUCKET_NAME'],  # Your R2 bucket name
+            file_path,  # The file's path in R2
+            file_content  # The object to store the file content in memory
+        )
+        file_content.seek(0)  # Ensure we are reading from the start of the file
+
+        # Send the file as a response for download
+        return send_file(
+            file_content,
+            as_attachment=True,
+            download_name=metadata.original_name,
+            mimetype="application/octet-stream"  # Adjust the MIME type as necessary
+        )
+    except NoCredentialsError as e:
+        logger.error(f"Credentials error: {e}")
+        abort(500, description="Internal Server Error: No valid credentials for R2.")
+    except Exception as e:
+        logger.error(f"Error retrieving file: {e}")
+        abort(500, description="Internal Server Error while retrieving file.")
+
 
 # Login route
 @app.route('/login', methods=['GET', 'POST'])
@@ -190,47 +262,62 @@ def create_user():
         db.session.commit()
         return "User created successfully"
 
-
-
+# Routes
 @app.route('/my_files')
-@login_required  # Ensure only logged-in users can view their files
+@login_required
 def my_files():
-    # Fetch files based on their folders
-    folder_paths = set(os.path.dirname(file.file_path) for file in FileMetadata.query.all())
-    
-    # Fetch all file metadata from the database
-    files_by_folder = {}
-    for folder_path in folder_paths:
-        files_by_folder[folder_path] = FileMetadata.query.filter(FileMetadata.file_path.like(f'{folder_path}%')).all()
+    try:
+        # Fetch unique folder paths from the metadata
+        folder_paths = set(
+            file.unique_name.split('/')[0] if '/' in file.unique_name else 'Root'
+            for file in FileMetadata.query.all()
+        )
+        app.logger.info(f"Extracted folder paths: {folder_paths}")
 
-    return render_template('my_files.html', files_by_folder=files_by_folder)
+        # Group files by folder
+        files_by_folder = {
+            folder: FileMetadata.query.filter(FileMetadata.unique_name.like(f"{folder}/%")).all()
+            for folder in folder_paths
+        }
+
+        return render_template('my_files.html', files_by_folder=files_by_folder)
+    except Exception as e:
+        app.logger.error(f"Error fetching files: {e}")
+        return jsonify({"success": False, "error": "Failed to fetch files"}), 500
+
 
 @app.route('/delete_file/<unique_id>', methods=['POST'])
-@login_required  # Ensure only logged-in users can delete files
+@login_required
 def delete_file(unique_id):
-    # Find the file metadata from the database
-    metadata = FileMetadata.query.filter_by(unique_name=unique_id).first()
+    app.logger.info(f"Attempting to delete file with unique_id: {unique_id.strip()}")
 
-    if not metadata:
-        return "File not found", 404
+    try:
+        # Find the file metadata in the database
+        metadata = FileMetadata.query.filter_by(unique_name=unique_id.strip()).first()
 
-    # Get the file path and delete the file from the server
-    file_path = metadata.file_path
-    if os.path.exists(file_path):
-        os.remove(file_path)  # Delete the file from the server
+        if not metadata:
+            app.logger.error(f"No file found for unique_id: {unique_id}")
+            return jsonify({"success": False, "error": "File not found"}), 404
 
-    # Delete the file metadata from the database
-    db.session.delete(metadata)
-    db.session.commit()
+        file_key = metadata.file_path  # Use the actual file path
 
-    # Redirect to the file listing page
-    return redirect(url_for('my_files'))
+        # Delete the file from Cloudflare R2
+        s3_client.delete_object(Bucket=app.config['R2_BUCKET_NAME'], Key=file_key)
 
+        # Remove metadata from the database
+        db.session.delete(metadata)
+        db.session.commit()
+
+        app.logger.info(f"Successfully deleted file: {unique_id}")
+        return jsonify({"success": True, "message": "File deleted successfully"}), 200
+
+    except Exception as e:
+        app.logger.error(f"Error deleting file: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        print("Database tables created")
-    app.run(debug=True, port=5001)
+    app.run(debug=False, port=5000)

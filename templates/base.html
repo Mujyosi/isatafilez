@@ -3,15 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IsataFiles</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
-    <!-- You can also include your custom CSS here -->
+    <title>IsataFiles - Your File Manager</title>
+    <!-- Bootstrap CSS -->
+      <!-- Favicon (Download icon) -->
+    <link rel="icon" href="/static/images/download-icon.ico" type="image/x-icon">
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css">
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Favicon -->
+    <link rel="icon" href="/static/images/favicon.ico" type="image/x-icon">
+    <style>
+        body {
+            background-color: #121212; /* Dark background */
+            color: #e0e0e0;          /* Light text color */
+            font-family: 'Poppins', sans-serif;
+        }
+        a {
+            color: #0d6efd; /* Bootstrap primary color for links */
+        }
+        a:hover {
+            color: #1e90ff; /* Lighter blue on hover */
+        }
+        header, footer, .navbar {
+            background-color: #1c1c1c; /* Slightly lighter dark */
+        }
+        .bg-light {
+            background-color: #2c2c2c !important; /* Adjust light backgrounds */
+            color: #e0e0e0 !important;
+        }
+        .bg-primary {
+            background-color: #343a40 !important; /* Darker primary */
+        }
+        .text-light {
+            color: #e0e0e0 !important; /* Light text for contrast */
+        }
+        .btn-primary {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        .btn-primary:hover {
+            background-color: #1e90ff;
+            border-color: #1e90ff;
+        }
+    </style>
 </head>
 <body>
     <!-- Navigation Bar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ url_for('index') }}">IsataFiles</a>
+    <nav class="navbar navbar-expand-lg navbar-dark shadow">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="{{ url_for('index') }}">IsataFiles</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -25,7 +68,7 @@
                     </li>
                     {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
+                        <a class="nav-link text-warning" href="{{ url_for('logout') }}">Logout</a>
                     </li>
                     {% endif %}
                 </ul>
@@ -33,36 +76,49 @@
         </div>
     </nav>
 
-    <!-- Main Content Block -->
-    <div class="container mt-4">
+    <!-- Hero Section -->
+    <header class="text-center py-5">
+        <div class="container">
+            <h1 class="display-4 fw-bold">Welcome to IsataFiles</h1>
+            <p class="lead">The easiest way to upload, manage, and share your files seamlessly.</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mt-5">
         {% block content %}
         {% endblock %}
-    </div>
+    </main>
 
     <!-- About Us Section -->
-    <section id="about-us" class="bg-light py-4">
-        <div class="container">
-            <h2 class="text-center">About Us</h2>
-            <p class="text-center">This is a free upload platform for movie and video files, created by Mujyosi for Isata. The platform is currently hosted on <a href="https://mujyosi.store" target="_blank">mujyosi.store</a>. Feel free to contact if  you need uploading for free while the service is available.</p>
+    <section id="about-us" class="py-5">
+        <div class="container text-center">
+            <h2 class="fw-bold mb-4">About Us</h2>
+            <p>IsataFiles is a modern file management platform created by Mujyosi for the Isata community. 
+                Our mission is to make file sharing secure, fast, and reliable. Visit us at 
+                <a href="https://mujyosi.store" target="_blank">mujyosi.store</a>.
+            </p>
         </div>
     </section>
 
-    <!-- Contact Information Section -->
-    <section id="contact-info" class="bg-dark text-light py-4">
+    <!-- Contact Section -->
+    <section id="contact-info" class="py-5">
         <div class="container text-center">
-            <h4>For More Information, Contact Us</h4>
+            <h3>Contact Us</h3>
             <p>Phone: <strong>+250 789 358 535</strong></p>
-            <p>Email: <strong><a href="mailto:sabrine222018047@gmail.com" class="text-light">sabrine222018047@gmail.com</a></strong></p>
+            <p>Email: <strong><a href="mailto:sabrine222018047@gmail.com" class="text-warning">sabrine222018047@gmail.com</a></strong></p>
         </div>
     </section>
 
     <!-- Footer -->
-    <footer class="text-center mt-4 py-3 bg-dark text-light">
-        <p>&copy; 2025 Lilium. All rights reserved.</p>
+    <footer class="py-3">
+        <div class="container text-center">
+            <p class="mb-0">&copy; 2025 <span class="fw-bold">IsataFiles</span>. All rights reserved.</p>
+            <small>Designed with ❤️ by Mujyosi.</small>
+        </div>
     </footer>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.min.js"></script>
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

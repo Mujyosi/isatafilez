@@ -1,22 +1,90 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <div class="container">
-        <h1 class="text-center my-4">Upload File</h1>
-        <form action="/upload" method="POST" enctype="multipart/form-data" class="my-4">
-            <div class="mb-3">
-                <label for="folder_name" class="form-label">Folder Name (Optional)</label>
-                <input type="text" name="folder_name" id="folder_name" class="form-control" placeholder="Enter folder name">
+<div class="container">
+    <h1 class="text-center my-4">Upload File</h1>
+
+    <form id="uploadForm" method="POST" enctype="multipart/form-data" class="my-4">
+        <div class="mb-3">
+            <label for="folder_name" class="form-label">Folder Name (Optional)</label>
+            <input type="text" name="folder_name" id="folder_name" class="form-control" placeholder="Enter folder name">
+        </div>
+        <div class="mb-3">
+            <label for="file" class="form-label">Choose a file to upload:</label>
+            <input type="file" name="file" id="file" class="form-control" required>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="mb-3">
+            <label class="form-label">Upload Progress</label>
+            <div class="progress">
+                <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%;"></div>
             </div>
-            <div class="mb-3">
-                <label for="file" class="form-label">Choose a file to upload:</label>
-                <input type="file" name="file" id="file" class="form-control" required>
-            </div>
-            <button type="submit" class="btn btn-primary w-100">Upload</button>
-        </form>
+        </div>
+
+        <button type="submit" class="btn btn-primary w-100">Upload</button>
+    </form>
+
+    <!-- File link section -->
+    <div id="fileLinkSection" class="mt-4 d-none">
+        <h5 class="text-center">Your file has been uploaded successfully!</h5>
+        <p class="text-center">
+            <a id="fileLink" href="#" target="_blank" class="btn btn-success">View Direct Link</a>
+        </p>
+        <p class="text-center">
+            <a id="secureLink" href="#" target="_blank" class="btn btn-warning">View Secure Link</a>
+        </p>
     </div>
-    <!-- Link to view uploaded files -->
-    <div class="mt-4">
-        <a href="{{ url_for('my_files') }}" class="btn btn-secondary w-100">View My Files</a>
-    </div>
+</div>
+
+<script>
+    const form = document.getElementById('uploadForm');
+    const progressBar = document.getElementById('progressBar');
+    const fileLinkSection = document.getElementById('fileLinkSection');
+    const fileLink = document.getElementById('fileLink');
+    const secureLink = document.getElementById('secureLink');
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();  // Prevent the default form submission
+
+        const formData = new FormData(form);
+
+        // Use XMLHttpRequest to track progress
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', '/upload', true);
+
+        // Track progress
+        xhr.upload.addEventListener('progress', function(event) {
+            if (event.lengthComputable) {
+                const percentCompleted = (event.loaded / event.total) * 100;
+                progressBar.style.width = percentCompleted + '%';
+            }
+        });
+
+        // Handle the response
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.success) {
+                    progressBar.style.width = '100%';  // Complete the progress bar
+                    fileLink.href = data.file_url;  // Set direct file link
+                    secureLink.href = data.secure_url;  // Set secure link
+                    fileLinkSection.classList.remove('d-none');  // Show the file link section
+                } else {
+                    alert('File upload failed: ' + data.error);
+                }
+            } else {
+                alert('Error uploading file: ' + xhr.statusText);
+            }
+        };
+
+        // Handle errors
+        xhr.onerror = function() {
+            alert('Request failed');
+        };
+
+        // Send the request
+        xhr.send(formData);
+    });
+</script>
 {% endblock %}

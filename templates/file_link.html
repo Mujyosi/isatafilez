@@ -1,39 +1,66 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 class="text-center">Your File Link</h1>
-<div class="my-4">
-    <p>Share this link:</p>
-    <a href="{{ url_for('file_link', unique_id=unique_id) }}" class="btn btn-link w-100" id="file-link">{{ request.url }}</a>
-    <!-- Copy Link Button -->
-    <button class="btn btn-secondary w-100 mt-2" onclick="copyLink()">Copy Link</button>
-</div>
-<div class="my-4">
-    <a href="/download/{{ unique_id }}" class="btn btn-success w-100">Download File</a>
-</div>
+<div class="container-fluid bg-dark text-light min-vh-100 py-5">
+    <div class="container">
+        <h1 class="text-center mb-4 display-3 fw-bold text-white">IsataFile</h1>
+        <p class="text-center lead mb-5">Your trusted file-sharing platform. Simple. Fast. Secure.</p>
 
-{% if is_video %}
-<div class="my-4">
-    <h5>Video Preview:</h5>
-    <video controls class="w-100">
-        <source src="{{ file_url }}" type="video/mp4">
-        Your browser does not support video playback.
-    </video>
-</div>
-{% endif %}
+        {% if is_video %}
+        <div class="my-4">
+            <!-- Video Preview Section -->
+            <h5 class="mb-3 text-light">Video Preview:</h5>
+            <div class="ratio ratio-16x9 bg-dark rounded shadow-lg">
+                <video controls class="w-100 rounded">
+                    <source src="{{ file_url }}" type="video/mp4">
+                    Your browser does not support video playback.
+                </video>
+            </div>
+        </div>
+        {% endif %}
 
-<!-- Social Media Share Buttons -->
-<div class="my-4">
-    <p>Share on:</p>
-    <a href="https://www.facebook.com/sharer/sharer.php?u={{ request.url }}" target="_blank" class="btn btn-primary">Facebook</a>
-    <a href="https://twitter.com/intent/tweet?url={{ request.url }}" target="_blank" class="btn btn-info">Twitter</a>
-    <a href="https://wa.me/?text={{ request.url }}" target="_blank" class="btn btn-success">WhatsApp</a>
+        <div class="my-4">
+            <!-- Download File Button -->
+            <a href="{{ url_for('download_file', unique_id=unique_id) }}" class="btn btn-success w-100 py-3 shadow-lg rounded-pill hover-shadow">
+                <i class="bi bi-download me-2"></i> Download File
+            </a>
+        </div>
+
+        <div class="my-4">
+            <!-- Shareable Link -->
+            <p class="mb-2 text-light">Share this link with friends:</p>
+            <div class="input-group">
+                <input type="text" class="form-control" id="file-link" 
+                       value="{{ url_for('file_link', unique_id=unique_id, _external=True) }}" readonly>
+                <button class="btn btn-primary rounded-end" onclick="copyLink()">Copy</button>
+            </div>
+        </div>
+
+        <!-- Social Media Share Buttons -->
+        <div class="my-4">
+            <p class="mb-3 text-light">Share on:</p>
+            <div class="d-flex gap-3 justify-content-start">
+                <a href="https://www.facebook.com/sharer/sharer.php?u={{ url_for('file_link', unique_id=unique_id, _external=True) }}" 
+                   target="_blank" class="btn btn-primary d-flex align-items-center px-4 py-2 rounded-pill">
+                    <i class="bi bi-facebook me-2"></i> Facebook
+                </a>
+                <a href="https://twitter.com/intent/tweet?url={{ url_for('file_link', unique_id=unique_id, _external=True) }}" 
+                   target="_blank" class="btn btn-info d-flex align-items-center px-4 py-2 rounded-pill">
+                    <i class="bi bi-twitter me-2"></i> Twitter
+                </a>
+                <a href="https://wa.me/?text={{ url_for('file_link', unique_id=unique_id, _external=True) }}" 
+                   target="_blank" class="btn btn-success d-flex align-items-center px-4 py-2 rounded-pill">
+                    <i class="bi bi-whatsapp me-2"></i> WhatsApp
+                </a>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
     // Function to copy the file link to the clipboard
     function copyLink() {
-        const link = document.getElementById("file-link").innerText;
+        const link = document.getElementById("file-link").value;
         navigator.clipboard.writeText(link).then(() => {
             alert("Link copied to clipboard!");
         }).catch(err => {
@@ -41,5 +68,4 @@
         });
     }
 </script>
-
 {% endblock %}
