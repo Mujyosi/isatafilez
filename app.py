@@ -5,6 +5,7 @@ from flask import Flask, Response, jsonify, render_template, request, redirect, 
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_sitemap import Sitemap
 import os
 import uuid
 from moviepy.video.io.VideoFileClip import VideoFileClip
@@ -20,7 +21,7 @@ import logging
 
 app = Flask(__name__)
 
-
+ext = Sitemap(app=app)
 # Enable CORS
 CORS(app, resources={r"/*": {"origins": ["http://localhost:5000", "https://isatafilez.vercel.app"]}})
 
@@ -130,6 +131,7 @@ def create_user():
 
 @app.route('/')
 @login_required
+@ext.register_generator
 def index():
     return render_template('index.html')
 
@@ -137,6 +139,7 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 @login_required
+@ext.register_generator
 def upload_file():
     if 'file' not in request.files:
         return jsonify({"success": False, "error": "No file uploaded"})
@@ -191,6 +194,7 @@ def access_file(unique_id):
     return redirect(file_url)
 
 @app.route('/file/<unique_id>')
+@ext.register_generator
 def file_link(unique_id):
     # Retrieve metadata for the file based on the unique ID
     metadata = FileMetadata.query.filter_by(unique_name=unique_id).first()
@@ -322,10 +326,12 @@ def delete_file(unique_id):
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route('/privacy-policy')
+@ext.register_generator 
 def privacy_policy():
     return render_template('privacy_policy.html')
 
 @app.route('/terms-of-service')
+@ext.register_generator 
 def terms_of_service():
     return render_template('terms_of_service.html')
 
