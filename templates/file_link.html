@@ -25,47 +25,6 @@
                 <i class="bi bi-download me-2"></i> Download File
             </a>
         </div>
-
-        <div class="my-4">
-            <!-- Shareable Link -->
-            <p class="mb-2 text-light">Share this link with friends:</p>
-            <div class="input-group">
-                <input type="text" class="form-control" id="file-link" 
-                       value="{{ url_for('file_link', unique_id=unique_id, _external=True) }}" readonly>
-                <button class="btn btn-primary rounded-end" onclick="copyLink()">Copy</button>
-            </div>
-        </div>
-
-        <!-- Social Media Share Buttons -->
-        <div class="my-4">
-            <p class="mb-3 text-light">Share on:</p>
-            <div class="d-flex gap-3 justify-content-start">
-                <a href="https://www.facebook.com/sharer/sharer.php?u={{ url_for('file_link', unique_id=unique_id, _external=True) }}" 
-                   target="_blank" class="btn btn-primary d-flex align-items-center px-4 py-2 rounded-pill">
-                    <i class="bi bi-facebook me-2"></i> Facebook
-                </a>
-                <a href="https://twitter.com/intent/tweet?url={{ url_for('file_link', unique_id=unique_id, _external=True) }}" 
-                   target="_blank" class="btn btn-info d-flex align-items-center px-4 py-2 rounded-pill">
-                    <i class="bi bi-twitter me-2"></i> Twitter
-                </a>
-                <a href="https://wa.me/?text={{ url_for('file_link', unique_id=unique_id, _external=True) }}" 
-                   target="_blank" class="btn btn-success d-flex align-items-center px-4 py-2 rounded-pill">
-                    <i class="bi bi-whatsapp me-2"></i> WhatsApp
-                </a>
-            </div>
-        </div>
     </div>
 </div>
-
-<script>
-    // Function to copy the file link to the clipboard
-    function copyLink() {
-        const link = document.getElementById("file-link").value;
-        navigator.clipboard.writeText(link).then(() => {
-            alert("Link copied to clipboard!");
-        }).catch(err => {
-            alert("Failed to copy link: " + err);
-        });
-    }
-</script>
 {% endblock %}

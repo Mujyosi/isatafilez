@@ -1,6 +1,8 @@
 import io
 import boto3
+from dotenv import load_dotenv
 from flask import Flask, Response, jsonify, render_template, request, redirect, send_file, url_for, session, abort, send_from_directory
+from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import os
@@ -10,6 +12,8 @@ from flask_migrate import Migrate
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
 from botocore.exceptions import NoCredentialsError
 from itsdangerous import URLSafeTimedSerializer
+from werkzeug.security import generate_password_hash
+import psycopg2
 import requests
 import logging
 
@@ -17,12 +21,13 @@ import logging
 app = Flask(__name__)
 
 
+# Enable CORS
+CORS(app, resources={r"/*": {"origins": ["http://localhost:5000", "https://isatafilez.vercel.app"]}})
 
 # Set up configuration
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-app.config['COMPRESSED_FOLDER'] = 'static/compressed'
+
 app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024 * 1024  # 1GB file size limit
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres.ksycadyzsegdpplnsgmd:Adobewindows11!@aws-0-eu-west-2.pooler.supabase.com:5432/postgres'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'your_secret_key'  # Required for session management
 
@@ -31,9 +36,13 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = "login"  # Redirect to login page if not logged in
 
-# Ensure the folders exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs(app.config['COMPRESSED_FOLDER'], exist_ok=True)
+load_dotenv()
+migrate = Migrate(app, db)
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+
+logging.basicConfig(level=logging.DEBUG)
 
 app.config['B2_ACCOUNT_ID'] = 'sabrine222018047@gmail.com'  # Replace with your Account ID
 app.config['B2_APP_KEY'] = '0d66b6394052'  # Replace with your Application Key
@@ -48,9 +57,6 @@ app.config['R2_BUCKET_NAME'] = 'isata'  # Update this if you specified a differe
 serializer = URLSafeTimedSerializer(app.config['SECRET_KEY'])
 
 
-# Set up logging
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
 
 # User model for Flask-Login
 class User(UserMixin, db.Model):
@@ -101,6 +107,28 @@ def compress_video(input_path, output_path, max_width=1280):
         print(f"Error compressing video: {e}")
         raise
 
+
+@app.route('/create_user')
+def create_user():
+    # Create a new user
+    username = 'Mujyosi'
+    password = 'Adobewindows1!'
+
+    # Check if the username already exists
+    existing_user = User.query.filter_by(username=username).first()
+
+    if existing_user:
+        return f"Username '{username}' already exists."
+    else:
+        # Hash the password before saving it
+        hashed_password = generate_password_hash(password, method='sha256')
+
+        # Create new user with hashed password
+        new_user = User(username=username, password=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
+        return "User created successfully"
+
 @app.route('/')
 @login_required
 def index():
@@ -148,7 +176,6 @@ def upload_file():
 
         # Generate secure link
         secure_url = url_for('file_link', unique_id=unique_id, _external=True)
-
         return jsonify({"success": True, "file_url": file_url, "secure_url": secure_url})
 
     except Exception as e:
@@ -179,20 +206,18 @@ def file_link(unique_id):
     # Render the file link page with the secure link and preview
     return render_template('file_link.html', file_url=file_url, is_video=is_video, unique_id=unique_id)
 
+
+
 @app.route('/download/<unique_id>')
 def download_file(unique_id):
-    logger.debug(f"Attempting to retrieve file with unique_id: {unique_id}")
-
     # Retrieve metadata for the file based on the unique ID
     metadata = FileMetadata.query.filter_by(unique_name=unique_id).first()
 
     if not metadata:
-        logger.error(f"File not found for unique_id: {unique_id}")
         abort(404, description="File not found")
 
     # Construct the file path (same as the file URL, but for R2)
     file_path = metadata.file_path
-    logger.debug(f"File path to be retrieved: {file_path}")
 
     try:
         # Fetch the file from R2 using boto3
@@ -211,11 +236,9 @@ def download_file(unique_id):
             download_name=metadata.original_name,
             mimetype="application/octet-stream"  # Adjust the MIME type as necessary
         )
-    except NoCredentialsError as e:
-        logger.error(f"Credentials error: {e}")
+    except NoCredentialsError:
         abort(500, description="Internal Server Error: No valid credentials for R2.")
-    except Exception as e:
-        logger.error(f"Error retrieving file: {e}")
+    except Exception:
         abort(500, description="Internal Server Error while retrieving file.")
 
 
@@ -245,22 +268,6 @@ def logout():
     return redirect(url_for('login'))
 
 
-@app.route('/create_user')
-def create_user():
-    # Create a new user
-    username = 'Mujyosi'
-    password = 'Adobewindows1!'
-
-    # Check if the username already exists
-    existing_user = User.query.filter_by(username=username).first()
-
-    if existing_user:
-        return f"Username '{username}' already exists."
-    else:
-        new_user = User(username=username, password=password)
-        db.session.add(new_user)
-        db.session.commit()
-        return "User created successfully"
 
 # Routes
 @app.route('/my_files')
@@ -320,4 +327,3 @@ def delete_file(unique_id):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=False, port=5000)
