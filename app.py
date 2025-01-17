@@ -335,6 +335,21 @@ def privacy_policy():
 def terms_of_service():
     return render_template('terms_of_service.html')
 
+@app.route('/sitemap.xml')
+def sitemap():
+    # Generate or read your sitemap content
+    sitemap_content = """<?xml version="1.0" encoding="UTF-8"?>
+    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+        <url>
+            <loc>https://isatafilez.onrender.com/</loc>
+            <lastmod>2025-01-17</lastmod>
+            <changefreq>daily</changefreq>
+            <priority>1.0</priority>
+        </url>
+        <!-- Add more URLs here -->
+    </urlset>"""
+    
+    return Response(sitemap_content, content_type='application/xml')
 
 if __name__ == '__main__':
     with app.app_context():
