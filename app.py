@@ -158,7 +158,7 @@ def upload_file():
             file,
             app.config['R2_BUCKET_NAME'],
             unique_name,
-            ExtraArgs={'ContentType': file.content_type}
+            ExtraArgs={'ContentType': file.content_type, 'Timeout': 1200}
         )
 
         # Save metadata to the database
