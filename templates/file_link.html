@@ -31,51 +31,5 @@
         </div>
     </div>
 </div>
-{% extends "base.html" %}
-
-{% block content %}
-<div class="container-fluid bg-dark text-light min-vh-100 py-5">
-    <div class="container">
-        <h1 class="text-center mb-4 display-3 fw-bold text-white">IsataFile</h1>
-        <p class="text-center lead mb-5">Your trusted file-sharing platform. Simple. Fast. Secure.</p>
-
-        {% if is_video %}
-        <div class="my-4">
-            <!-- Video Preview Section -->
-            <h5 class="mb-3 text-light">Video Preview:</h5>
-            <div class="ratio ratio-16x9 bg-dark rounded shadow-lg">
-                <video controls class="w-100 rounded">
-                    <source src="{{ file_url }}" type="video/mp4">
-                    Your browser does not support video playback.
-                </video>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- Adsterra Native Banner Ad -->
-        <div class="my-4 text-center">
-            <!-- Place Adsterra Native Banner Script here -->
-            <script type="text/javascript">
-                (function() {
-                    var adsterraScript = document.createElement('script');
-                    adsterraScript.src = 'https://pubclicks.com/serve/native/banner/your-adsterra-banner-id';
-                    adsterraScript.async = true;
-                    document.getElementById('native-banner-container').appendChild(adsterraScript);
-                })();
-            </script>
-            <div id="native-banner-container"></div>
-        </div>
-
-        <div class="my-4">
-            <!-- Download File Button -->
-            <a href="{{ url_for('download_file', unique_id=unique_id) }}" class="btn btn-success w-100 py-3 shadow-lg rounded-pill hover-shadow">
-                <i class="bi bi-download me-2"></i> Download File
-            </a>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-<!-- Place Profitable CPM Rate Script at the end of the body -->
 <script type='text/javascript' src='//pl25595529.profitablecpmrate.com/97/d2/7d/97d27d8c95660fcfbc6cafa1d95985c4.js'></script>
 {% endblock %}
