@@ -321,6 +321,13 @@ def delete_file(unique_id):
         app.logger.error(f"Error deleting file: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/privacy-policy')
+def privacy_policy():
+    return render_template('privacy_policy.html')
+
+@app.route('/terms-of-service')
+def terms_of_service():
+    return render_template('terms_of_service.html')
 
 
 if __name__ == '__main__':
