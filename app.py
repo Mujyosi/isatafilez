@@ -91,15 +91,6 @@ def get_b2_api():
     b2_api.authorize_account("production", app.config['B2_ACCOUNT_ID'], app.config['B2_APP_KEY'])
     return b2_api
 
-
-@app.before_request
-def check_file_size():
-    if request.content_length > app.config['MAX_CONTENT_LENGTH']:
-        app.logger.error(f"File size exceeds limit: {request.content_length} bytes")
-        return jsonify({"success": False, "error": "File too large"}), 413  # HTTP 413 Payload Too Large
-
-
-
 # Load user for Flask-Login
 @login_manager.user_loader
 def load_user(user_id):
