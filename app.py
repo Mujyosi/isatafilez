@@ -155,7 +155,7 @@ def upload_file():
     unique_name = f"{folder_name}/{unique_id}.{file_ext}"  # Create a path like 'isata/<unique_id>.extension'
 
     # Define chunk size (e.g., 1 MB)
-    chunk_size = 50 * 1024 * 1024  # 50 MB per chunk
+    chunk_size = 10 * 1024 * 1024  # 50 MB per chunk
 
     upload_id = None  # Initialize upload_id
 
