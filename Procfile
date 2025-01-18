@@ -1,1 +1,1 @@
-web: gunicorn --timeout 1200 app:app  # Timeout set to 1200 seconds (20 minutes)
+web: gunicorn --timeout 1200 --workers=1 --worker-class=uvicorn.workers.UvicornWorker --log-level=debug app:app
