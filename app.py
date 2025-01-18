@@ -137,9 +137,9 @@ def index():
 
 
 
+
 @app.route('/upload', methods=['POST'])
 @login_required
-@ext.register_generator
 def upload_file():
     if 'file' not in request.files:
         return jsonify({"success": False, "error": "No file uploaded"})
@@ -149,18 +149,46 @@ def upload_file():
         return jsonify({"success": False, "error": "No file selected"})
 
     # Use 'isata' as the default folder if none is provided
-    folder_name = request.form.get('folder_name', 'isata')  # Default folder name 'isata'
+    folder_name = request.form.get('folder_name', 'isata')
     file_ext = file.filename.split('.')[-1]
     unique_id = uuid.uuid4().hex  # Generate a unique ID
     unique_name = f"{folder_name}/{unique_id}.{file_ext}"  # Create a path like 'isata/<unique_id>.extension'
 
+    # Define chunk size (e.g., 1 MB)
+    chunk_size = 50 * 1024 * 1024  # 50 MB per chunk
+
+    upload_id = None  # Initialize upload_id
+
     try:
-        # Upload the file to Cloudflare R2
-        s3_client.upload_fileobj(
-            file,
-            app.config['R2_BUCKET_NAME'],
-            unique_name,
-            ExtraArgs={'ContentType': file.content_type}
+        # Start the multipart upload
+        upload_id = s3_client.create_multipart_upload(
+            Bucket=app.config['R2_BUCKET_NAME'],  # Accessing the bucket name from config
+            Key=unique_name,
+            ContentType=file.content_type
+        )['UploadId']
+
+        # Upload file in chunks
+        part_number = 1
+        parts = []
+
+        # Read and upload in chunks
+        while chunk := file.stream.read(chunk_size):
+            part = s3_client.upload_part(
+                Bucket=app.config['R2_BUCKET_NAME'],  # Accessing the bucket name from config
+                Key=unique_name,
+                PartNumber=part_number,
+                UploadId=upload_id,
+                Body=chunk
+            )
+            parts.append({'PartNumber': part_number, 'ETag': part['ETag']})
+            part_number += 1
+
+        # Complete the multipart upload
+        s3_client.complete_multipart_upload(
+            Bucket=app.config['R2_BUCKET_NAME'],  # Accessing the bucket name from config
+            Key=unique_name,
+            UploadId=upload_id,
+            MultipartUpload={'Parts': parts}
         )
 
         # Save metadata to the database
@@ -168,19 +196,27 @@ def upload_file():
             unique_name=unique_id,
             original_name=file.filename,
             is_compressed=False,
-            file_path=unique_name  # Store the folder and file path
+            file_path=unique_name
         )
         db.session.add(metadata)
         db.session.commit()
 
-        # Construct the file URL with the proper format
+        # Construct the file URL
         file_url = f"https://pub-8ddd7050ab164d438f6ef03254ee053d.r2.dev/{unique_name}"
 
-        # Generate secure link
+        # Generate a secure URL
         secure_url = url_for('file_link', unique_id=unique_id, _external=True)
+
         return jsonify({"success": True, "file_url": file_url, "secure_url": secure_url})
 
     except Exception as e:
+        if upload_id:
+            # If something goes wrong, abort the multipart upload
+            s3_client.abort_multipart_upload(
+                Bucket=app.config['R2_BUCKET_NAME'],  # Accessing the bucket name from config
+                Key=unique_name,
+                UploadId=upload_id
+            )
         return jsonify({"success": False, "error": str(e)})
 
 
