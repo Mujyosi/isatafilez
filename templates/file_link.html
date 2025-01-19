@@ -18,18 +18,76 @@
             </div>
         </div>
         {% endif %}
-         <!-- Native Banner Ad Placement -->
+        
+        <!-- Native Banner Ad Placement -->
         <div class="my-4 text-center">
             <script async="async" data-cfasync="false" src="//pl25595572.profitablecpmrate.com/eb706d3ec0c6db6d21f19498a3e7ac97/invoke.js"></script>
             <div id="container-eb706d3ec0c6db6d21f19498a3e7ac97"></div>
         </div>
+
         <div class="my-4">
-            <!-- Download File Button -->
-            <a href="{{ url_for('download_file', unique_id=unique_id) }}" class="btn btn-success w-100 py-3 shadow-lg rounded-pill hover-shadow">
+            <!-- Download File Button with loading state -->
+            <a href="{{ url_for('download_file', unique_id=unique_id) }}" class="btn btn-success w-100 py-3 shadow-lg rounded-pill hover-shadow" id="downloadBtn" onclick="startDownload(event)">
                 <i class="bi bi-download me-2"></i> Download File
             </a>
+            <div id="downloadingMessage" class="text-center mt-3" style="display:none;">
+                <p class="text-light">Downloading...</p>
+            </div>
+        </div>
+
+        <div class="my-4">
+            <!-- Shareable Link -->
+            <p class="mb-2 text-light">Share this link with friends:</p>
+            <div class="input-group">
+                <input type="text" class="form-control" id="file-link" 
+                       value="{{ url_for('file_link', unique_id=unique_id, _external=True) }}" readonly>
+                <!-- Copy Link Icon Button -->
+                <button class="btn btn-primary rounded-end" onclick="copyLink()">
+                    <i class="bi bi-clipboard"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Social Media Share Buttons (without Twitter) -->
+        <div class="my-4">
+            <p class="mb-3 text-light">Share on:</p>
+            <div class="d-flex gap-3 justify-content-start">
+                <a href="https://www.facebook.com/sharer/sharer.php?u={{ url_for('file_link', unique_id=unique_id, _external=True) }}" 
+                   target="_blank" class="btn btn-primary d-flex align-items-center px-4 py-2 rounded-pill">
+                    <i class="bi bi-facebook me-2"></i> Facebook
+                </a>
+                <a href="https://wa.me/?text={{ url_for('file_link', unique_id=unique_id, _external=True) }}" 
+                   target="_blank" class="btn btn-success d-flex align-items-center px-4 py-2 rounded-pill">
+                    <i class="bi bi-whatsapp me-2"></i> WhatsApp
+                </a>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    // Function to copy the file link to the clipboard
+    function copyLink() {
+        const link = document.getElementById("file-link").value;
+        navigator.clipboard.writeText(link).then(() => {
+            alert("Link copied to clipboard!");
+        }).catch(err => {
+            alert("Failed to copy link: " + err);
+        });
+    }
+
+    // Function to simulate download and show the downloading message
+    function startDownload(event) {
+        event.preventDefault(); // Prevents the default link behavior
+        document.getElementById("downloadBtn").style.display = "none"; // Hide the download button
+        document.getElementById("downloadingMessage").style.display = "block"; // Show the downloading message
+        
+        // Redirect to the actual download link after a short delay to simulate loading
+        setTimeout(function() {
+            window.location.href = event.target.href; // Proceed with the download
+        }, 2000); // You can adjust the delay as per your needs
+    }
+</script>
+
 <script type='text/javascript' src='//pl25595529.profitablecpmrate.com/97/d2/7d/97d27d8c95660fcfbc6cafa1d95985c4.js'></script>
 {% endblock %}
