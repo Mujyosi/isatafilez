@@ -72,6 +72,8 @@ class FileMetadata(db.Model):
     original_name = db.Column(db.String(256), nullable=False)
     is_compressed = db.Column(db.Boolean, default=False)
     file_path = db.Column(db.String(256), nullable=False)
+    views = db.Column(db.Integer, default=0, nullable=False)
+    hd_file_path = db.Column(db.String(200), nullable=True)  # Add this field
     def __repr__(self):
         return f"<File {self.original_name}>"
 
@@ -194,23 +196,37 @@ def access_file(unique_id):
     file_url = f"https://pub-8ddd7050ab164d438f6ef03254ee053d.r2.dev/{metadata.file_path}"
     return redirect(file_url)
 
-@app.route('/file/<unique_id>')
+
+@app.route('/file/<unique_id>', methods=['GET'])
 @ext.register_generator
 def file_link(unique_id):
-    # Retrieve metadata for the file based on the unique ID
     metadata = FileMetadata.query.filter_by(unique_name=unique_id).first()
     if not metadata:
         abort(404)
 
-    # Construct the file URL using the metadata's file path
+    # Increment the view count
+    metadata.views += 1
+    db.session.commit()
+
     cloudflare_base_url = "https://pub-8ddd7050ab164d438f6ef03254ee053d.r2.dev/"
     file_url = f"{cloudflare_base_url}{metadata.file_path}"
+    hd_file_url = metadata.hd_file_path if metadata.hd_file_path else None  # Use the HD file path directly
     is_video = file_url.endswith(('.mp4', '.webm', '.ogg'))
 
-    # Render the file link page with the secure link and preview
-    return render_template('file_link.html', file_url=file_url, is_video=is_video, unique_id=unique_id)
+    return render_template('file_link.html', file_url=file_url, is_video=is_video, unique_id=unique_id, views=metadata.views, hd_file_url=hd_file_url)
 
+# Route to increment view count via AJAX
+@app.route('/increment_view_count/<unique_id>', methods=['POST'])
+def increment_view_count(unique_id):
+    metadata = FileMetadata.query.filter_by(unique_name=unique_id).first()
 
+    if metadata:
+        # Increment the view count
+        metadata.views += 1
+        db.session.commit()
+        return jsonify({'status': 'success', 'views': metadata.views}), 200
+    else:
+        return jsonify({'status': 'not found'}), 404
 
 @app.route('/download/<unique_id>')
 def download_file(unique_id):
@@ -244,6 +260,57 @@ def download_file(unique_id):
         abort(500, description="Internal Server Error: No valid credentials for R2.")
     except Exception:
         abort(500, description="Internal Server Error while retrieving file.")
+
+    
+@app.route('/admin/manage_links', methods=['GET', 'POST'])
+@login_required
+def manage_links():
+    if request.method == 'POST':
+        action = request.form.get('action')
+        target_id = request.form.get('unique_name')
+        hd_file_path = request.form.get('hd_link')  # Renamed variable to match the column name
+
+        print(f"Action: {action}, Target ID: {target_id}, HD File Path: {hd_file_path}")
+
+        if action == 'update':  # Update action
+            if not target_id or not hd_file_path:
+                flash("Both File ID and HD Link are required.", 'danger')
+                return redirect(url_for('manage_links'))
+
+            file = db.session.get(FileMetadata, int(target_id))  # Using session.get() instead of query.get()
+            if file:
+                print(f"Updating HD file path for {file.original_name} to {hd_file_path}")
+                file.hd_file_path = hd_file_path  # Updated column name to hd_file_path
+                try:
+                    db.session.commit()
+                    print(f"Committed: {file}")
+                    flash(f"HD file path for '{file.original_name}' updated successfully.", 'success')
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Error updating HD file path: {e}")
+                    flash("An error occurred while updating the HD file path.", 'danger')
+            else:
+                flash("File with the provided ID not found.", 'danger')
+
+        elif action == 'delete':  # Delete action
+            file_id = request.form.get('file_id')
+            file = db.session.get(FileMetadata, int(file_id))  # Using session.get() instead of query.get()
+            if file:
+                file.hd_file_path = None  # Set the correct column for deletion
+                try:
+                    db.session.commit()
+                    flash(f"HD file path for '{file.original_name}' removed successfully.", 'success')
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Error deleting HD file path: {e}")
+                    flash("An error occurred while deleting the HD file path.", 'danger')
+            else:
+                flash("File not found.", 'danger')
+
+        return redirect(url_for('manage_links'))
+
+    files = FileMetadata.query.all()
+    return render_template('manage_links.html', files=files)
 
 
 # Login route
