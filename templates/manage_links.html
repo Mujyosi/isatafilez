@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <h1 class="mb-4">Manage Download Links</h1>
+
+    <form method="POST" class="mb-5">
+        <div class="row g-3">
+            <!-- Select Dropdown for File ID -->
+            <div class="col-md-4">
+                <select name="unique_name" class="form-select" required>
+                    <option value="" disabled selected>Select File by ID</option>
+                    {% for file in files %}
+                    <option value="{{ file.id }}">{{ file.id }} - {{ file.original_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <!-- Input for HD Link -->
+            <div class="col-md-6">
+                <input type="url" name="hd_link" class="form-control" placeholder="HD Link URL" required>
+            </div>
+            <!-- Hidden Action Field -->
+            <div class="col-md-2">
+                <input type="hidden" name="action" value="update">
+                <button type="submit" class="btn btn-primary w-100">Add/Update Link</button>
+            </div>
+        </div>
+    </form>
+    
+
+    <!-- Files Table -->
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Original Name</th>
+                <th>Unique Name</th>
+                <th>HD Link</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for file in files %}
+            <tr>
+                <td>{{ file.id }}</td>
+                <td>{{ file.original_name }}</td>
+                <td>{{ file.unique_name }}</td>
+                <td>
+                    <form method="POST" class="d-flex">
+                        <input type="hidden" name="file_id" value="{{ file.id }}">
+                        <input type="hidden" name="action" value="update">
+                        <input type="url" name="hd_link" class="form-control" value="{{ file.hd_file_path }}" placeholder="HD Link">
+                        <button type="submit" class="btn btn-success btn-sm ms-2">Save</button>
+                    </form>
+                </td>
+                <td>
+                    <form method="POST" onsubmit="return confirm('Are you sure you want to delete this HD link?');">
+                        <input type="hidden" name="file_id" value="{{ file.id }}">
+                        <input type="hidden" name="action" value="delete">
+                        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
